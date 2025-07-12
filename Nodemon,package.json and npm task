@@ -1,0 +1,50 @@
+ package.json
+ What is it?
+A file that contains metadata about your Node.js project.
+
+Manages the project’s dependencies, scripts, version, and config.
+
+ Key Points:
+Created using npm init or npm init -y.
+
+Stores project name, version, description, entry point, scripts, dependencies, etc.
+
+Essential for project sharing, deployment, and reproducibility.
+
+ Example:
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+
+ nodemon
+ What is it?
+A development tool that automatically restarts your Node.js app when file changes are detected.
+
+🔧 Install:
+npm install --save-dev nodemon
+
+
+ Use in Scripts:
+"scripts": {
+  "dev": "nodemon index.js"
+}
+
+
+
+
+ Summary:
+Use dependencies for packages your app requires in production.
+
+Use devDependencies for tools used only during development/testing.
+
+nodemon is a devDependency that helps with auto-reloading during dev work.
+
+package.json is your project manifest, enabling package management and script automation.
