@@ -1,0 +1,38 @@
+const http = require('http');
+const fs = require('fs');
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/' && req.method === 'GET') {
+    // now we will create our HTML form
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.write(`
+      <form action="/message" method="POST">
+        <input type="text" name="message" placeholder="Enter a message" required/>
+        <button type="submit">Send</button>
+      </form>
+    `);
+    res.end();
+  } else if (req.url === '/message' && req.method === 'POST') {
+    const body = [];
+
+    req.on('data', chunk => {
+      body.push(chunk); // Buffer chunks
+    });
+
+    req.on('end', () => {
+      const parsedBody = Buffer.concat(body).toString();
+      const message = parsedBody.split('=')[1];
+
+      fs.writeFileSync('message.txt', message); // write to file
+
+      // Redirecting  with 302
+      res.writeHead(302, { Location: '/' });
+      res.end();
+    });
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/html' });
+    res.end('<h1>404 Not Found</h1>');
+  }
+});
+
+server.listen(3000, () => console.log("Server running on http://localhost:3000"));
