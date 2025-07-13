@@ -1,0 +1,57 @@
+Controllers folder -> productController.js -> 
+
+exports.getAllProducts = (req, res) => {
+  res.send('Fetching all products');
+};
+
+exports.getProductById = (req, res) => {
+  const id = req.params.id;
+  res.send(`Fetching product with ID: ${id}`);
+};
+
+exports.addNewProduct = (req, res) => {
+  res.send('Adding a new product');
+};
+
+----------------------------------------------------------------------------------------------
+
+Routes folder -> productRoutes.js -> 
+
+const express = require('express');
+const router = express.Router();
+
+const {
+  getAllProducts,
+  getProductById,
+  addNewProduct
+} = require('../controllers/productController');
+
+// Route Definitions with controller logic
+router.get('/', getAllProducts);
+router.post('/', addNewProduct);
+router.get('/:id', getProductById);
+
+module.exports = router;
+
+----------------------------------------------------------------------------------------------
+
+Main file -> index.js -> 
+
+const express = require('express');
+const app = express();
+const PORT = 4000;
+
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+
+app.use(express.json());
+
+app.use('/users', userRoutes);
+app.use('/products', productRoutes);
+app.use('/cart', cartRoutes);
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
+
