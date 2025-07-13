@@ -1,0 +1,83 @@
+Routes Folder -> userRoutes.js -> 
+
+const express = require('express');
+const router = express.Router();
+
+router.get('/', (req, res) => {
+  res.send('Fetching all users');
+});
+
+router.post('/', (req, res) => {
+  res.send('Adding a new user');
+});
+
+router.get('/:id', (req, res) => {
+  res.send(`Fetching user with ID: ${req.params.id}`);
+});
+
+module.exports = router;
+
+-------------------------------------------------------------------------------------------------
+
+Routes Folder -> productRoutes.js -> 
+
+const express = require('express');
+const router = express.Router();
+
+router.get('/', (req, res) => {
+  res.send('Fetching all products');
+});
+
+router.post('/', (req, res) => {
+  res.send('Adding a new product');
+});
+
+router.get('/:id', (req, res) => {
+  res.send(`Fetching product with ID: ${req.params.id}`);
+});
+
+module.exports = router;
+
+-------------------------------------------------------------------------------------------------
+
+Routes Folder -> cartRoutes.js -> 
+
+const express = require('express');
+const router = express.Router();
+
+router.get('/:userId', (req, res) => {
+  res.send(`Fetching cart for user with ID: ${req.params.userId}`);
+});
+
+router.post('/:userId', (req, res) => {
+  res.send(`Adding product to cart for user with ID: ${req.params.userId}`);
+});
+
+module.exports = router;
+
+-------------------------------------------------------------------------------------------------
+
+Main file - index.js -> 
+
+const express = require('express');
+const app = express();
+const PORT = 4000;
+
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+
+app.use(express.json());
+
+// Mounting routes with express router setup 
+app.use('/users', userRoutes);
+app.use('/products', productRoutes);
+app.use('/cart', cartRoutes);
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
+
+
+
+
