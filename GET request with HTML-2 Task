@@ -1,0 +1,35 @@
+View Folder -> productForm.html ->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Product</title>
+</head>
+<body>
+  <form action="/api/products" method="POST">
+    <label for="product">Product Name:</label>
+    <input type="text" id="product" name="productName" required>
+    <button type="submit">Add Product</button>
+  </form>
+</body>
+</html>
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+Main index.js -> 
+
+const express = require('express');
+const path = require('path');
+
+const app = express();
+const PORT = 3000;
+
+// - /api/products - To Serve the form HTML
+app.get('/api/products', (req, res) => {
+  res.sendFile(path.join(__dirname, 'VIEW', 'productForm.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+});
