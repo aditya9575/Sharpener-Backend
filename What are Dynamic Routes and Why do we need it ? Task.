@@ -1,0 +1,15 @@
+const express = require("express");
+const app = express();
+
+// Route with a route parameter (:username) and a query parameter (?role=...)
+app.get('/welcome/:username', (req, res) => {
+    const username = req.params.username;        // this is our. route param
+    const role = req.query.role || "User";       // this is our query param with default fallback
+
+    res.send(`Welcome ${username}, your role is ${role}`);
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});
