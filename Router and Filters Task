@@ -1,0 +1,56 @@
+Inside routes folder /orders.js ->
+
+const express = require('express');
+const router = express.Router();
+
+router.get('/', (req, res) => {
+  res.send('Here is the list of all orders.');
+});
+
+router.post('/', (req, res) => {
+  res.send('A new order has been created.');
+});
+
+module.exports = router;
+
+------------------------------------------------------------------------------------
+
+Inside routes folder /users.js -> 
+
+const express = require('express');
+const router = express.Router();
+
+router.get('/', (req, res) => {
+  res.send('Here is the list of all users.');
+});
+
+router.post('/', (req, res) => {
+  res.send('A new user has been added.');
+});
+
+module.exports = router;
+
+------------------------------------------------------------------------------------
+
+index.js (Main server file) ->
+
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+// Importing our routers
+const orderRoutes = require('./routes/orders');
+const userRoutes = require('./routes/users');
+
+app.use(express.json());
+
+// mounting routes with our express router setup 
+app.use('/orders', orderRoutes);  // Access via /orders
+app.use('/users', userRoutes);    // Access via /users
+
+app.listen(PORT, () => {
+  console.log(`✅ Server is running on http://localhost:${PORT}`);
+});
+
+
+
