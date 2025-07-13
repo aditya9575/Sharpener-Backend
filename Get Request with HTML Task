@@ -1,0 +1,30 @@
+View Folder -> products.html ->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Products</title>
+</head>
+<body>
+  <h1>Fetching All Products</h1>
+</body>
+</html>
+
+---------------------------------------------------------------------------------------------------------------------------
+
+Main index.js file -> 
+
+const express = require('express');
+const path = require('path');
+
+const app = express();
+const PORT = 3000;
+
+// Route to serve HTML file
+app.get('/api/products', (req, res) => {
+  res.sendFile(path.join(__dirname, 'VIEW', 'products.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
