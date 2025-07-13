@@ -1,0 +1,124 @@
+controllers folder -> userController.js -> 
+
+exports.getAllUsers = (req, res) => {
+  res.send("Fetching all users");
+};
+
+exports.addUser = (req, res) => {
+  res.send("Adding a new user");
+};
+
+exports.getUserById = (req, res) => {
+  const id = req.params.id;
+  res.send(`Fetching user with ID: ${id}`);
+};
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+controllers folder -> productController.js -> 
+
+exports.getAllProducts = (req, res) => {
+  res.send("Fetching all products");
+};
+
+exports.addProduct = (req, res) => {
+  res.send("Adding a new product");
+};
+
+exports.getProductById = (req, res) => {
+  const id = req.params.id;
+  res.send(`Fetching product with ID: ${id}`);
+};
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+controllers folder -> cartController.js ->
+
+exports.getCartForUser = (req, res) => {
+  const userId = req.params.userId;
+  res.send(`Fetching cart for user with ID: ${userId}`);
+};
+
+exports.addProductToCart = (req, res) => {
+  const userId = req.params.userId;
+  res.send(`Adding product to cart for user with ID: ${userId}`);
+};
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+routes folder -> userRoutes.js -> 
+
+const express = require('express');
+const router = express.Router();
+
+const {
+  getAllUsers,
+  addUser,
+  getUserById
+} = require('../controllers/userController');
+
+router.get('/', getAllUsers);
+router.post('/', addUser);
+router.get('/:id', getUserById);
+
+module.exports = router;
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+routes folder -> productRoutes.js ->
+
+const express = require('express');
+const router = express.Router();
+
+const {
+  getAllProducts,
+  addProduct,
+  getProductById
+} = require('../controllers/productController');
+
+router.get('/', getAllProducts);
+router.post('/', addProduct);
+router.get('/:id', getProductById);
+
+module.exports = router;
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+routes -> cartRoutes.js ->
+
+const express = require('express');
+const router = express.Router();
+
+const {
+  getCartForUser,
+  addProductToCart
+} = require('../controllers/cartController');
+
+router.get('/:userId', getCartForUser);
+router.post('/:userId', addProductToCart);
+
+module.exports = router;
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+index.js (Main Server File) -> 
+
+const express = require('express');
+const app = express();
+const PORT = 4000;
+
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+
+app.use(express.json());
+
+// Mounting the routers
+app.use('/users', userRoutes);
+app.use('/products', productRoutes);
+app.use('/cart', cartRoutes);
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+});
+
