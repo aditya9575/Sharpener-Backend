@@ -1,0 +1,159 @@
+controllers folder -> productController.js ->
+
+const productService = require('../services/productService');
+
+exports.getAllProducts = (req, res, next) => {
+  try {
+    const products = productService.getAllProducts();
+    res.send(products);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getProductById = (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const product = productService.getProductById(id);
+    if (!product) {
+      const error = new Error(`Product with ID ${id} not found`);
+      error.status = 404;
+      throw error;
+    }
+    res.send(product);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.addProduct = (req, res, next) => {
+  try {
+    const { productName } = req.body;
+    if (!productName) {
+      const error = new Error("Product name is required");
+      error.status = 400;
+      throw error;
+    }
+    const newProduct = productService.addProduct(productName);
+    res.status(201).json({ success: true, data: newProduct });
+  } catch (err) {
+    next(err);
+  }
+};
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+controllers -> userController.js ->
+
+exports.getCartForUser = (req, res) => {
+  res.send(`Fetching cart for user with ID: ${req.params.userId}`);
+};
+
+exports.addProductToCart = (req, res) => {
+  res.send(`Adding product to cart for user with ID: ${req.params.userId}`);
+};
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+services folder -> productService.js ->
+
+let products = [
+  { id: 1, name: 'Laptop' },
+  { id: 2, name: 'Phone' }
+];
+
+exports.getAllProducts = () => {
+  return products;
+};
+
+exports.getProductById = (id) => {
+  return products.find(p => p.id == id);
+};
+
+exports.addProduct = (name) => {
+  const newProduct = {
+    id: products.length + 1,
+    name
+  };
+  products.push(newProduct);
+  return newProduct;
+};
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+routes folder -> productRoutes.js ->
+
+const express = require('express');
+const router = express.Router();
+const productController = require('../controllers/productController');
+
+router.get('/', productController.getAllProducts);
+router.post('/', productController.addProduct);
+router.get('/:id', productController.getProductById);
+
+module.exports = router;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+routes folder -> cartRoutes.js -> 
+
+const express = require('express');
+const router = express.Router();
+const cartController = require('../controllers/cartController');
+
+router.get('/:userId', cartController.getCartForUser);
+router.post('/:userId', cartController.addProductToCart);
+
+module.exports = router;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+middlewares -> errorHandler.js ->
+
+const errorHandler = (err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || "Internal Server Error"
+  });
+};
+
+module.exports = errorHandler;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+VIEWS folder -> productForm.html -> 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Product</title>
+</head>
+<body>
+  <h2>Add New Product</h2>
+  <form id="productForm">
+    <label for="product">Product Name:</label>
+    <input type="text" id="product" name="productName" required>
+    <button type="submit">Add Product</button>
+  </form>
+
+  <script src="/script.js"></script>
+</body>
+</html>
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+public -> script.js ->
+
+document.getElementById('productForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const productName = document.getElementById('product').value;
+
+  try {
+    const res = await axios.post('/products', { productName });
+    alert('Product Added: ' + res.data.data.name);
+  } catch (error) {
+    alert('Error: ' + error.response.data.error);
+  }
+});
