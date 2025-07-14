@@ -1,0 +1,63 @@
+View Folder -> productForm.html -> 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Product</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+  <h2>Add Product</h2>
+
+  <form id="productForm">
+    <label for="product">Product Name:</label>
+    <input type="text" id="product" name="productName" required />
+    <button type="submit">Add Product</button>
+  </form>
+
+  <script>
+    document.getElementById('productForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const productName = document.getElementById('product').value;
+
+      axios.post('/api/products', { productName })
+        .then(res => {
+          alert(res.data.message);
+        })
+        .catch(err => {
+          console.error('Error:', err);
+        });
+    });
+  </script>
+</body>
+</html>
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Main index.js file -> 
+
+const express = require('express');
+const path = require('path');
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+
+// Serving the HTML form on GET /api/products
+app.get('/api/products', (req, res) => {
+  res.sendFile(path.join(__dirname, 'VIEW', 'productForm.html'));
+});
+
+// Handling the POST from the form using Axios
+app.post('/api/products', (req, res) => {
+  const { productName } = req.body;
+  console.log(`Product received: ${productName}`);
+  res.json({ message: `Product "${productName}" has been added successfully.` });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
