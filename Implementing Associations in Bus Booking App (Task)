@@ -1,0 +1,174 @@
+.env file -> 
+DB_NAME=bus_booking
+DB_USER=root
+DB_PASSWORD=root123
+DB_HOST=localhost
+PORT=5000
+
+models/user.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const User = sequelize.define('User', {
+    name: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true }
+  });
+
+  return User;
+};
+
+models/bus.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Bus = sequelize.define('Bus', {
+    busNumber: { type: DataTypes.STRING, allowNull: false },
+    totalSeats: { type: DataTypes.INTEGER, allowNull: false },
+    availableSeats: { type: DataTypes.INTEGER, allowNull: false }
+  });
+
+  return Bus;
+};
+
+models/booking.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Booking = sequelize.define('Booking', {
+    seatNumber: { type: DataTypes.INTEGER, allowNull: false }
+  });
+
+  return Booking;
+};
+
+models/index.js ->
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'mysql',
+    logging: false
+  }
+);
+
+const User = require('./user')(sequelize);
+const Bus = require('./bus')(sequelize);
+const Booking = require('./booking')(sequelize);
+
+// Associations
+User.hasMany(Booking);
+Booking.belongsTo(User);
+
+Bus.hasMany(Booking);
+Booking.belongsTo(Bus);
+
+sequelize.sync({ alter: true }).then(() => {
+  console.log("Database synced.");
+});
+
+module.exports = { sequelize, User, Bus, Booking };
+
+controllers/controller.js ->
+module.exports = (User, Bus, Booking) => ({
+  createUser: async (req, res) => {
+    try {
+      const user = await User.create(req.body);
+      res.status(201).json(user);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  createBus: async (req, res) => {
+    try {
+      const bus = await Bus.create(req.body);
+      res.status(201).json(bus);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  createBooking: async (req, res) => {
+    try {
+      const { userId, busId, seatNumber } = req.body;
+      const user = await User.findByPk(userId);
+      const bus = await Bus.findByPk(busId);
+      if (!user || !bus) return res.status(404).json({ error: "User or Bus not found" });
+
+      const booking = await Booking.create({ userId, busId, seatNumber });
+      res.status(201).json(booking);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  getUserBookings: async (req, res) => {
+    try {
+      const bookings = await Booking.findAll({
+        where: { userId: req.params.id },
+        include: [{ model: Bus, attributes: ['busNumber'] }]
+      });
+      res.json(bookings);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  getBusBookings: async (req, res) => {
+    try {
+      const bookings = await Booking.findAll({
+        where: { busId: req.params.id },
+        include: [{ model: User, attributes: ['name', 'email'] }]
+      });
+      res.json(bookings);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+routes/routes.js ->
+const express = require('express');
+
+module.exports = (User, Bus, Booking) => {
+  const router = express.Router();
+  const controller = require('../controllers/controller')(User, Bus, Booking);
+
+  router.post('/users', controller.createUser);
+  router.post('/buses', controller.createBus);
+  router.post('/bookings', controller.createBooking);
+  router.get('/users/:id/bookings', controller.getUserBookings);
+  router.get('/buses/:id/bookings', controller.getBusBookings);
+
+  return router;
+};
+
+index.js ->
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const { sequelize, User, Bus, Booking } = require('./models');
+const routes = require('./routes/routes')(User, Bus, Booking);
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use('/api', routes);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, async () => {
+  try {
+    await sequelize.authenticate();
+    console.log("Connected to DB");
+    console.log(`Server running at http://localhost:${PORT}`);
+  } catch (err) {
+    console.error("DB connection error:", err);
+  }
+});
