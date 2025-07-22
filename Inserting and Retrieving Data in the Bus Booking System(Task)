@@ -1,0 +1,131 @@
+Index.js -> 
+const express = require('express');
+const mysql = require('mysql2');
+const bodyParser = require('body-parser');
+const userRoutes = require('./routes/users');
+const busRoutes = require('./routes/buses');
+
+const app = express();
+const PORT = 3000;
+
+app.use(bodyParser.json());
+
+//Connecting to my sql
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '12345', 
+    database: 'bus_booking'
+});
+
+db.connect((err) => {
+    if (err) {
+        console.error('MySQL Connection Error:', err);
+        process.exit(1);
+    }
+    console.log('Connected to MySQL database');
+
+    //Creating users table if not exists
+    db.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL
+        )
+    `);
+
+    //Creating buses table if not exists
+    db.query(`
+        CREATE TABLE IF NOT EXISTS buses (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            busNumber VARCHAR(50) NOT NULL,
+            totalSeats INT NOT NULL,
+            availableSeats INT NOT NULL
+        )
+    `);
+});
+
+//Inject db into all routes
+app.use((req, res, next) => {
+    req.db = db;
+    next();
+});
+
+app.use('/users', userRoutes);
+app.use('/buses', busRoutes);
+
+app.get('/', (req, res) => {
+    res.send('Bus Booking System API');
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server is running at http://localhost:${PORT}`);
+});
+
+
+
+routes folder -> users.js ->
+const express = require('express');
+const router = express.Router();
+
+// Inserting user
+router.post('/', (req, res) => {
+    const { name, email } = req.body;
+    const query = 'INSERT INTO users (name, email) VALUES (?, ?)';
+    req.db.query(query, [name, email], (err, result) => {
+        if (err) {
+            console.error('Insert user error:', err);
+            return res.status(500).send('User insertion failed');
+        }
+        res.status(201).json({ message: 'User added', userId: result.insertId });
+    });
+});
+
+//Retrieving all users
+router.get('/', (req, res) => {
+    const query = 'SELECT * FROM users';
+    req.db.query(query, (err, results) => {
+        if (err) {
+            console.error('Fetch users error:', err);
+            return res.status(500).send('Failed to fetch users');
+        }
+        res.json(results);
+    });
+});
+
+module.exports = router;
+
+routes folder -> buses.js ->
+const express = require('express');
+const router = express.Router();
+
+//Inserting bus
+router.post('/', (req, res) => {
+    const { busNumber, totalSeats, availableSeats } = req.body;
+    const query = 'INSERT INTO buses (busNumber, totalSeats, availableSeats) VALUES (?, ?, ?)';
+    req.db.query(query, [busNumber, totalSeats, availableSeats], (err, result) => {
+        if (err) {
+            console.error('Insert bus error:', err);
+            return res.status(500).send('Bus insertion failed');
+        }
+        res.status(201).json({ message: 'Bus added', busId: result.insertId });
+    });
+});
+
+//Filtering buses by available seats
+router.get('/available/:seats', (req, res) => {
+    const { seats } = req.params;
+    const query = 'SELECT * FROM buses WHERE availableSeats > ?';
+    req.db.query(query, [parseInt(seats)], (err, results) => {
+        if (err) {
+            console.error('Fetch buses error:', err);
+            return res.status(500).send('Failed to fetch buses');
+        }
+        res.json(results);
+    });
+});
+
+module.exports = router;
+
+
+
