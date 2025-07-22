@@ -1,0 +1,168 @@
+.env file -> 
+DB_NAME=associationdb
+DB_USER=root
+DB_PASSWORD=root123
+DB_HOST=localhost
+PORT=5000
+
+models/student.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Student = sequelize.define('Student', {
+    name: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true }
+  });
+
+  return Student;
+};
+
+models/course.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Course = sequelize.define('Course', {
+    title: { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT }
+  });
+
+  return Course;
+};
+
+models/index.js ->
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'mysql',
+    logging: false,
+  }
+);
+
+// Loading models
+const Student = require('./student')(sequelize);
+const Course = require('./course')(sequelize);
+
+// Defining Many-to-Many association
+Student.belongsToMany(Course, { through: 'StudentCourses' });
+Course.belongsToMany(Student, { through: 'StudentCourses' });
+
+sequelize.sync({ alter: true }).then(() => {
+  console.log('Database synced.');
+});
+
+module.exports = { sequelize, Student, Course };
+
+controllers/studentController.js ->
+module.exports = (Student, Course) => ({
+  createStudent: async (req, res) => {
+    try {
+      const student = await Student.create(req.body);
+      res.status(201).json(student);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  createCourse: async (req, res) => {
+    try {
+      const course = await Course.create(req.body);
+      res.status(201).json(course);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  enrollStudent: async (req, res) => {
+    try {
+      const { studentId, courseId } = req.body;
+      const student = await Student.findByPk(studentId);
+      const course = await Course.findByPk(courseId);
+
+      if (!student || !course) {
+        return res.status(404).json({ error: 'Student or course not found' });
+      }
+
+      await student.addCourse(course);
+      res.status(200).json({ message: 'Enrollment successful' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  getStudentCourses: async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const student = await Student.findByPk(studentId, {
+        include: Course
+      });
+
+      if (!student) return res.status(404).json({ error: 'Student not found' });
+
+      res.json(student);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  getCourseStudents: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const course = await Course.findByPk(courseId, {
+        include: Student
+      });
+
+      if (!course) return res.status(404).json({ error: 'Course not found' });
+
+      res.json(course);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+routes/studentRoutes.js ->
+const express = require('express');
+
+module.exports = (Student, Course) => {
+  const router = express.Router();
+  const controller = require('../controllers/studentController')(Student, Course);
+
+  router.post('/students', controller.createStudent);
+  router.post('/courses', controller.createCourse);
+  router.post('/enroll', controller.enrollStudent);
+  router.get('/students/:studentId/courses', controller.getStudentCourses);
+  router.get('/courses/:courseId/students', controller.getCourseStudents);
+
+  return router;
+};
+
+index.js ->
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const { sequelize, Student, Course } = require('./models');
+const studentRoutes = require('./routes/studentRoutes')(Student, Course);
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use('/api', studentRoutes);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('Database connected.');
+    console.log(`Server running at http://localhost:${PORT}`);
+  } catch (err) {
+    console.error('Unable to connect to DB:', err);
+  }
+});
