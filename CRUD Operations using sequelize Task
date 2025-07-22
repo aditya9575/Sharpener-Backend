@@ -1,0 +1,135 @@
+Index.js -> 
+const express = require('express');
+const { Sequelize } = require('sequelize');
+const studentRoutes = require('./routes/students');
+require('dotenv').config();
+
+const app = express();
+app.use(express.json());
+
+// Sequelize DB connection
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'mysql',
+    logging: false,
+  }
+);
+
+// Testing the DB connection
+sequelize.authenticate()
+  .then(() => {
+    console.log('Connected to MySQL via Sequelize');
+  })
+  .catch(err => {
+    console.error('Unable to connect to DB:', err);
+  });
+
+// Sync models
+const Student = require('./models/student')(sequelize);
+sequelize.sync({ alter: true }).then(() => {
+  console.log('✅ Tables synced');
+});
+
+app.use('/students', studentRoutes(Student));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
+
+models folder -> student.js
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Student = sequelize.define('Student', {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    email: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: false,
+    },
+    age: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  });
+
+  return Student;
+};
+
+routes folder -> students.js ->
+const express = require('express');
+
+module.exports = (Student) => {
+  const router = express.Router();
+
+  // Insert
+  router.post('/', async (req, res) => {
+    try {
+      const student = await Student.create(req.body);
+      console.log('INSERT:', student.toJSON());
+      res.status(201).json(student);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Read All
+  router.get('/', async (req, res) => {
+    try {
+      const students = await Student.findAll();
+      res.json(students);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Read by ID
+  router.get('/:id', async (req, res) => {
+    try {
+      const student = await Student.findByPk(req.params.id);
+      if (!student) return res.status(404).json({ error: 'Not found' });
+      res.json(student);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update
+  router.put('/:id', async (req, res) => {
+    try {
+      const student = await Student.findByPk(req.params.id);
+      if (!student) return res.status(404).json({ error: 'Not found' });
+
+      await student.update(req.body);
+      console.log('UPDATE:', student.toJSON());
+      res.json(student);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Delete
+  router.delete('/:id', async (req, res) => {
+    try {
+      const student = await Student.findByPk(req.params.id);
+      if (!student) return res.status(404).json({ error: 'Not found' });
+
+      await student.destroy();
+      console.log('DELETE:', student.toJSON());
+      res.json({ message: 'Deleted successfully' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  return router;
+};
