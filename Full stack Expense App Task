@@ -1,0 +1,128 @@
+.env File ->
+DB_NAME=expense_db
+DB_USER=root
+DB_PASSWORD=root123
+DB_HOST=localhost
+PORT=5000
+
+models/expense.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Expense = sequelize.define('Expense', {
+    title: { type: DataTypes.STRING, allowNull: false },
+    amount: { type: DataTypes.FLOAT, allowNull: false },
+    category: { type: DataTypes.STRING, allowNull: false }
+  });
+
+  return Expense;
+};
+
+models/index.js ->
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'mysql',
+    logging: false
+  }
+);
+
+const Expense = require('./expense')(sequelize);
+
+sequelize.sync({ alter: true }).then(() => {
+  console.log("Database synced.");
+});
+
+module.exports = { sequelize, Expense };
+
+controllers/expenseController.js ->
+module.exports = (Expense) => ({
+  addExpense: async (req, res) => {
+    try {
+      const { title, amount, category } = req.body;
+      const expense = await Expense.create({ title, amount, category });
+      res.status(201).json(expense);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  getExpenses: async (req, res) => {
+    try {
+      const expenses = await Expense.findAll();
+      res.json(expenses);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  deleteExpense: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await Expense.destroy({ where: { id } });
+      if (!deleted) return res.status(404).json({ error: "Expense not found" });
+      res.json({ message: "Expense deleted" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  editExpense: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await Expense.update(req.body, { where: { id } });
+      if (!updated[0]) return res.status(404).json({ error: "Expense not found" });
+      const newExpense = await Expense.findByPk(id);
+      res.json(newExpense);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+routes/expenseRoutes.js ->
+const express = require('express');
+
+module.exports = (Expense) => {
+  const router = express.Router();
+  const controller = require('../controllers/expenseController')(Expense);
+
+  router.post('/expenses', controller.addExpense);
+  router.get('/expenses', controller.getExpenses);
+  router.delete('/expenses/:id', controller.deleteExpense);
+  router.put('/expenses/:id', controller.editExpense); // Bonus: Edit
+
+  return router;
+};
+
+index.js ->
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const { sequelize, Expense } = require('./models');
+const expenseRoutes = require('./routes/expenseRoutes')(Expense);
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use('/api', expenseRoutes);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, async () => {
+  try {
+    await sequelize.authenticate();
+    console.log("DB connected.");
+    console.log(`Server running at http://localhost:${PORT}`);
+  } catch (err) {
+    console.error("Failed to connect DB:", err);
+  }
+});
+
