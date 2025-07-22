@@ -1,0 +1,123 @@
+Index.js -> 
+const express = require('express');
+const { Sequelize, DataTypes } = require('sequelize');
+
+const app = express();
+const PORT = 3000;
+app.use(express.json());
+
+//Connecting Sequelize to MySQL
+const sequelize = new Sequelize('school', 'root', '12345', {
+  host: 'localhost',
+  dialect: 'mysql',
+});
+
+//Define the Student model
+const Student = sequelize.define('Student', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
+  },
+  age: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  }
+}, {
+  tableName: 'students',
+  timestamps: false
+});
+
+//Connect and Sync
+sequelize.authenticate()
+  .then(() => {
+    console.log('Connected to MySQL via Sequelize');
+    return sequelize.sync(); 
+  })
+  .then(() => {
+    console.log('Students table is ready');
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('Database connection failed:', err);
+  });
+
+// Creating API Routes
+
+//Insert a new student
+app.post('/students', async (req, res) => {
+  try {
+    const { name, email, age } = req.body;
+    const student = await Student.create({ name, email, age });
+    console.log(`Inserted student ID ${student.id}`);
+    res.status(201).json(student);
+  } catch (err) {
+    console.error('Insert Error:', err);
+    res.status(500).json({ error: 'Failed to insert student' });
+  }
+});
+
+//Retrieve all students
+app.get('/students', async (req, res) => {
+  try {
+    const students = await Student.findAll();
+    res.json(students);
+  } catch (err) {
+    console.error('Fetch Error:', err);
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+});
+
+//Retrieve student by ID
+app.get('/students/:id', async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    res.json(student);
+  } catch (err) {
+    console.error('Fetch by ID Error:', err);
+    res.status(500).json({ error: 'Failed to fetch student' });
+  }
+});
+
+//Update student
+app.put('/students/:id', async (req, res) => {
+  try {
+    const { name, email, age } = req.body;
+    const student = await Student.findByPk(req.params.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    await student.update({ name, email, age });
+    console.log(`Updated student ID ${req.params.id}`);
+    res.json({ message: 'Student updated' });
+  } catch (err) {
+    console.error('Update Error:', err);
+    res.status(500).json({ error: 'Failed to update student' });
+  }
+});
+
+//Delete student
+app.delete('/students/:id', async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    await student.destroy();
+    console.log(`Deleted student ID ${req.params.id}`);
+    res.json({ message: 'Student deleted' });
+  } catch (err) {
+    console.error('Deletion Error:', err);
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+});
