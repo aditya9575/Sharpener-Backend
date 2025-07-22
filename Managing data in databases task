@@ -1,0 +1,113 @@
+Index.js -> 
+const express = require('express');
+const mysql = require('mysql2');
+const bodyParser = require('body-parser');
+const userRoutes = require('./routes/users');
+
+const app = express();
+const PORT = 3000;
+
+app.use(bodyParser.json());
+
+// Connecting to my sql 
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '12345',               
+    database: 'bus_booking'     
+});
+
+db.connect((err) => {
+    if (err) {
+        console.error('MySQL Connection Error:', err);
+        process.exit(1);
+    }
+    console.log('Connected to MySQL database');
+
+    //Creating the 'users' table if it doesn't exist
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL
+        )
+    `;
+
+    db.query(createTableQuery, (err, result) => {
+        if (err) {
+            console.error('Error creating users table:', err);
+            process.exit(1);
+        }
+        if (result.warningCount === 0) {
+            console.log(' "users" table created successfully.');
+        } else {
+            console.log(' "users" table already exists.');
+        }
+    });
+});
+
+app.use('/users', (req, res, next) => {
+    req.db = db;
+    next();
+}, userRoutes);
+
+app.get('/', (req, res) => {
+    res.send('Bus Booking System API');
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
+
+
+
+//Routes Folder -> users.js for user routes -> 
+const express = require('express');
+const router = express.Router();
+
+//INSERTING THE USER
+router.post('/', (req, res) => {
+    const { name, email } = req.body;
+    const query = 'INSERT INTO users (name, email) VALUES (?, ?)';
+    req.db.query(query, [name, email], (err, result) => {
+        if (err) {
+            console.error('Insert Error:', err);
+            return res.status(500).send('Insertion failed');
+        }
+        console.log('User inserted:', result.insertId);
+        res.status(201).json({ message: 'User created', userId: result.insertId });
+    });
+});
+
+//UPDATING THE USER
+router.put('/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, email } = req.body;
+    const query = 'UPDATE users SET name = ?, email = ? WHERE id = ?';
+    req.db.query(query, [name, email, id], (err, result) => {
+        if (err) {
+            console.error('Update Error:', err);
+            return res.status(500).send('Update failed');
+        }
+        if (result.affectedRows === 0) return res.status(404).send('User not found');
+        console.log('User updated:', result);
+        res.send('User updated successfully');
+    });
+});
+
+//DELETING THE USER
+router.delete('/:id', (req, res) => {
+    const { id } = req.params;
+    const query = 'DELETE FROM users WHERE id = ?';
+    req.db.query(query, [id], (err, result) => {
+        if (err) {
+            console.error('Delete Error:', err);
+            return res.status(500).send('Deletion failed');
+        }
+        if (result.affectedRows === 0) return res.status(404).send('User not found');
+        console.log('User deleted:', result);
+        res.send('User deleted successfully');
+    });
+});
+
+module.exports = router;
