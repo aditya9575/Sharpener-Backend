@@ -1,0 +1,143 @@
+index.js -> 
+const express = require('express');
+const mysql = require('mysql2');
+const bodyParser = require('body-parser');
+const studentRoutes = require('./routes/students');
+
+const app = express();
+const PORT = 3000;
+
+app.use(bodyParser.json());
+
+// my sql Connection Setup
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '12345',
+    database: 'school'
+});
+
+//connecting to my sql
+db.connect((err) => {
+    if (err) {
+        console.error('MySQL connection failed:', err);
+        process.exit(1);
+    }
+    console.log('✅ Connected to MySQL');
+
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS students (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            age INT NOT NULL
+        )
+    `;
+    db.query(createTableQuery, (err) => {
+        if (err) {
+            console.error('Failed to create students table:', err);
+        } else {
+            console.log('Students table ensured');
+        }
+    });
+});
+
+// Injecting db to every request
+app.use((req, res, next) => {
+    req.db = db;
+    next();
+});
+
+app.use('/students', studentRoutes);
+
+app.get('/', (req, res) => {
+    res.send('Student Management API');
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+
+routes folder -> students.js ->
+const express = require('express');
+const router = express.Router();
+
+// Inserting a new student
+router.post('/', (req, res) => {
+    const { name, email, age } = req.body;
+    const query = 'INSERT INTO students (name, email, age) VALUES (?, ?, ?)';
+    req.db.query(query, [name, email, age], (err, result) => {
+        if (err) {
+            console.error('Insert Error:', err);
+            return res.status(500).json({ error: 'Failed to insert student' });
+        }
+        console.log(`Inserted student ID ${result.insertId}`);
+        res.status(201).json({ message: 'Student inserted', id: result.insertId });
+    });
+});
+
+// Geting all the students
+router.get('/', (req, res) => {
+    const query = 'SELECT * FROM students';
+    req.db.query(query, (err, results) => {
+        if (err) {
+            console.error('Fetch Error:', err);
+            return res.status(500).json({ error: 'Failed to fetch students' });
+        }
+        res.json(results);
+    });
+});
+
+// Geting a single student by ID
+router.get('/:id', (req, res) => {
+    const { id } = req.params;
+    const query = 'SELECT * FROM students WHERE id = ?';
+    req.db.query(query, [id], (err, results) => {
+        if (err) {
+            console.error('Fetch by ID Error:', err);
+            return res.status(500).json({ error: 'Error fetching student' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Student not found' });
+        }
+        res.json(results[0]);
+    });
+});
+
+// Updating the student by ID
+router.put('/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, email, age } = req.body;
+    const query = 'UPDATE students SET name = ?, email = ?, age = ? WHERE id = ?';
+    req.db.query(query, [name, email, age, id], (err, result) => {
+        if (err) {
+            console.error('Update Error:', err);
+            return res.status(500).json({ error: 'Failed to update student' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Student not found' });
+        }
+        console.log(`Updated student ID ${id}`);
+        res.json({ message: 'Student updated' });
+    });
+});
+
+// Deleting the student by ID
+router.delete('/:id', (req, res) => {
+    const { id } = req.params;
+    const query = 'DELETE FROM students WHERE id = ?';
+    req.db.query(query, [id], (err, result) => {
+        if (err) {
+            console.error('Deletion Error:', err);
+            return res.status(500).json({ error: 'Failed to delete student' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Student not found' });
+        }
+        console.log(`Deleted student ID ${id}`);
+        res.json({ message: 'Student deleted' });
+    });
+});
+
+module.exports = router;
