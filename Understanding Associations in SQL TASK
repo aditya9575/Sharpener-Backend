@@ -1,0 +1,138 @@
+.env file -> 
+DB_NAME=associationdb
+DB_USER=root
+DB_PASSWORD=root123
+DB_HOST=localhost
+PORT=5000
+
+models/user.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const User = sequelize.define('User', {
+    name: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true }
+  });
+
+  return User;
+};
+
+models/post.js ->
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const Post = sequelize.define('Post', {
+    title: { type: DataTypes.STRING, allowNull: false },
+    content: { type: DataTypes.TEXT }
+  });
+
+  return Post;
+};
+
+models/index.js ->
+const { Sequelize } = require('sequelize');
+const dotenv = require('dotenv');
+dotenv.config();
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'mysql',
+    logging: false,
+  }
+);
+
+// Load models
+const User = require('./user')(sequelize);
+const Post = require('./post')(sequelize);
+
+// One-to-Many Association
+User.hasMany(Post, { foreignKey: 'userId', onDelete: 'CASCADE' });
+Post.belongsTo(User, { foreignKey: 'userId' });
+
+sequelize.sync({ alter: true }).then(() => {
+  console.log('Database synced with models.');
+});
+
+module.exports = { sequelize, User, Post };
+
+controllers/userController.js->
+module.exports = (User, Post) => ({
+  createUser: async (req, res) => {
+    try {
+      const user = await User.create(req.body);
+      res.status(201).json(user);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  createPost: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const post = await Post.create({ ...req.body, userId });
+      res.status(201).json(post);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  getUserPosts: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await User.findByPk(userId, {
+        include: Post
+      });
+
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      res.json(user);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+});
+
+routes/userRoutes.js ->
+const express = require('express');
+
+module.exports = (User, Post) => {
+  const router = express.Router();
+  const controller = require('../controllers/userController')(User, Post);
+
+  router.post('/users', controller.createUser);
+  router.post('/users/:userId/posts', controller.createPost);
+  router.get('/users/:userId/posts', controller.getUserPosts);
+
+  return router;
+};
+
+index.js ->
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const { sequelize, User, Post } = require('./models');
+const userRoutes = require('./routes/userRoutes')(User, Post);
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use('/api', userRoutes);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('Database connected.');
+    console.log(`Server running at http://localhost:${PORT}`);
+  } catch (err) {
+    console.error('Unable to connect to DB:', err);
+  }
+});
+
+
