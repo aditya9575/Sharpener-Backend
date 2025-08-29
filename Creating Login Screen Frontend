@@ -1,0 +1,71 @@
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+
+const Login = ({ setIsAuthenticated }) => {
+    const [userEmail, setUserEmail] = useState("");
+    const [userPassword, setUserPassword] = useState("");
+    const [loginError, setLoginError] = useState("");
+
+    const navigate = useNavigate()
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoginError("");
+
+        try {
+            const response = await fetch("http://localhost:4000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: userEmail,
+                    password: userPassword,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // store JWT token
+                localStorage.setItem("token", data.token);
+
+                // clear form
+                setUserEmail("");
+                setUserPassword("");
+                alert("Login Successful");
+                // we use the setter function as in our app.jsx we are only checking token on the app load so we need to set authenticated to be 
+                // true from here as well 
+                setIsAuthenticated(true);
+                navigate("/home")
+            } else {
+                setLoginError(data.message || "Login failed");
+            }
+        } catch (err) {
+            setLoginError("Something went wrong. Try again later.");
+        }
+    };
+
+    return (
+        <form onSubmit={handleLogin}>
+            <input
+                type="email"
+                placeholder="Enter Your Email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                required
+            />
+            <input
+                type="password"
+                placeholder="Enter Your Password"
+                value={userPassword}
+                onChange={(e) => setUserPassword(e.target.value)}
+                required
+            />
+            <button type="submit">Login</button>
+            <Link to="/signup">Don't have an account..?</Link>
+            {loginError && <h5 style={{ color: "red" }}>{loginError}</h5>}
+        </form>
+    );
+};
+
+export default Login;
