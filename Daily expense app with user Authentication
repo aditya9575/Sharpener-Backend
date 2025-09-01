@@ -1,0 +1,143 @@
+expense model file -> 
+
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/DBConnection");
+const User = require("./UserModel");
+
+const Expense = sequelize.define(
+    "Expense",
+    {
+        id: {
+            type: DataTypes.INTEGER.UNSIGNED,
+            autoIncrement: true,
+            primaryKey: true,
+        },
+        amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: false,
+        },
+        description: {
+            type: DataTypes.STRING(255),
+            allowNull: true,
+        },
+        category: {
+            type: DataTypes.ENUM("Food", "Petrol", "Salary", "Entertainment", "Shopping", "Other"),
+            allowNull: false,
+        },
+        date: {
+            type: DataTypes.DATEONLY,
+            defaultValue: DataTypes.NOW,
+        },
+    },
+    {
+        tableName: "expenses",
+    }
+);
+
+// 🔗 relationship (one user → many expenses)
+User.hasMany(Expense, { foreignKey: "userId", onDelete: "CASCADE" });
+Expense.belongsTo(User, { foreignKey: "userId" });
+
+module.exports = Expense;
+
+
+
+expense controller file -> 
+const Expense = require("../models/ExpenseModel");
+const jwt = require("jsonwebtoken");
+
+// 🔑 Utility: verify JWT token
+const getUserFromToken = (req) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        throw new Error("No token provided");
+    }
+
+    const token = authHeader.split(" ")[1];
+    return jwt.verify(token, process.env.JWT_SECRET); // returns decoded { id: ... }
+};
+
+// ✅ Create a new expense
+exports.createExpense = async (req, res) => {
+    try {
+        const decoded = getUserFromToken(req); // extract user from token
+        const { amount, description, category } = req.body;
+
+        if (!amount || !category) {
+            return res.status(400).json({ message: "Amount and category are required" });
+        }
+
+        const expense = await Expense.create({
+            amount,
+            description,
+            category,
+            userId: decoded.id, // 👈 use decoded token id
+        });
+
+        res.status(201).json(expense);
+    } catch (error) {
+        console.error("Error creating expense:", error);
+        res.status(401).json({ message: error.message || "Unauthorized" });
+    }
+};
+
+// ✅ Get all expenses of logged-in user
+exports.getExpenses = async (req, res) => {
+    try {
+        const decoded = getUserFromToken(req);
+
+        const expenses = await Expense.findAll({
+            where: { userId: decoded.id },
+            order: [["date", "DESC"]],
+        });
+        res.json(expenses);
+    } catch (error) {
+        console.error("Error fetching expenses:", error);
+        res.status(401).json({ message: error.message || "Unauthorized" });
+    }
+};
+
+// ✅ Update an expense
+exports.updateExpense = async (req, res) => {
+    try {
+        const decoded = getUserFromToken(req);
+        const { id } = req.params;
+        const { amount, description, category } = req.body;
+
+        const expense = await Expense.findOne({ where: { id, userId: decoded.id } });
+
+        if (!expense) {
+            return res.status(404).json({ message: "Expense not found" });
+        }
+
+        expense.amount = amount || expense.amount;
+        expense.description = description || expense.description;
+        expense.category = category || expense.category;
+
+        await expense.save();
+        res.json(expense);
+    } catch (error) {
+        console.error("Error updating expense:", error);
+        res.status(401).json({ message: error.message || "Unauthorized" });
+    }
+};
+
+// ✅ Delete an expense
+exports.deleteExpense = async (req, res) => {
+    try {
+        const decoded = getUserFromToken(req);
+        const { id } = req.params;
+
+        const expense = await Expense.findOne({ where: { id, userId: decoded.id } });
+
+        if (!expense) {
+            return res.status(404).json({ message: "Expense not found" });
+        }
+
+        await expense.destroy();
+        res.json({ message: "Expense deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting expense:", error);
+        res.status(401).json({ message: error.message || "Unauthorized" });
+    }
+};
